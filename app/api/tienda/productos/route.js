@@ -22,7 +22,7 @@ function isVisible(producto) {
   return visibleWeb === true || visibleEnWeb === true;
 }
 
-function mapProducto(producto) {
+function mapProducto(producto, categoriasPorId) {
   const precio =
     producto.precio_venta ??
     producto.precio ??
@@ -31,6 +31,8 @@ function mapProducto(producto) {
     0;
 
   const categoria =
+    categoriasPorId[String(producto.categoria_id || "")] ||
+    producto.categoria_nombre ||
     producto.categoria ||
     producto.rubro ||
     producto.familia ||
@@ -45,11 +47,15 @@ function mapProducto(producto) {
 
   return {
     id: producto.id,
+    producto_id: producto.id,
     code: codigo,
     codigo_barras: producto.codigo_barras || "",
     codigo_interno: producto.codigo_interno || producto.codigo || "",
     name: producto.nombre || producto.descripcion || "Producto sin nombre",
+    nombre: producto.nombre || producto.descripcion || "Producto sin nombre",
     category: categoria,
+    categoria,
+    categoria_id: producto.categoria_id || null,
     marca: producto.marca || "",
     price: Math.round(Number(precio || 0)),
     oldPrice: producto.precio_anterior ? Number(producto.precio_anterior) : null,
@@ -65,21 +71,32 @@ function mapProducto(producto) {
 
 export async function GET() {
   try {
-    const { data, error } = await supabase
-      .from("productos")
-      .select("*")
-      .order("nombre", { ascending: true });
+    const [{ data: productosData, error: productosError }, { data: categoriasData }] =
+      await Promise.all([
+        supabase
+          .from("productos")
+          .select("*")
+          .order("nombre", { ascending: true }),
+        supabase
+          .from("categorias")
+          .select("id, nombre"),
+      ]);
 
-    if (error) {
+    if (productosError) {
       return NextResponse.json(
-        { ok: false, error: error.message },
+        { ok: false, error: productosError.message },
         { status: 500 }
       );
     }
 
-    const productos = (data || [])
+    const categoriasPorId = {};
+    for (const categoria of categoriasData || []) {
+      categoriasPorId[String(categoria.id)] = categoria.nombre;
+    }
+
+    const productos = (productosData || [])
       .filter(isVisible)
-      .map(mapProducto)
+      .map((producto) => mapProducto(producto, categoriasPorId))
       .filter((producto) => producto.price > 0);
 
     return NextResponse.json(
