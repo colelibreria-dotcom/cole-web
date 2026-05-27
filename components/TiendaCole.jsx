@@ -410,7 +410,7 @@ export default function TiendaCole() {
 
   return (
     <div className="cole-store">
-      <header className="cole-header"><div className="cole-shell cole-header-inner"><a href="/" className="cole-brand" aria-label="COLE Librería y Papelería"><img src="/logo-web.png" alt="COLE" className="cole-logo-img cole-logo-web" /><div><p className="cole-brand-title">COLE Librería y Papelería</p><p className="cole-brand-subtitle">Escolar · Oficina · Arte · Regalería</p></div></a><nav className="cole-nav" aria-label="Secciones de tienda">
+      <header className="cole-header"><div className="cole-shell cole-header-inner"><a href="/" className="cole-brand" aria-label="COLE Librería y Papelería"><img src="/logo-web.png" alt="COLE" className="cole-logo-img cole-logo-web" /><div><p className="cole-brand-title">Papelería escolar</p><p className="cole-brand-subtitle">Papelería Escolar · Comercial · Oficina · Técnica</p></div></a><nav className="cole-nav" aria-label="Secciones de tienda">
   <div className="cole-catalog-dropdown">
     <button
       type="button"
@@ -492,7 +492,7 @@ export default function TiendaCole() {
             </div>
           </div>
         </section>
-        <section id="catalogo" className="cole-shell cole-catalog"><div className="cole-catalog-header"><div><span className="cole-section-kicker">Catálogo</span><h2>Productos destacados</h2><p>Los artículos se cargan desde la tabla de productos de COLE Gestión.</p></div><div className="cole-filters"><label className="cole-search"><span className="cole-search-icon-wrap"><Icons.Search className="cole-search-icon" /></span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar producto, código, rubro..." /></label><select value={sort} onChange={(event) => setSort(event.target.value)}><option value="name-asc">Nombre A-Z</option><option value="name-desc">Nombre Z-A</option><option value="price-asc">Menor precio</option><option value="price-desc">Mayor precio</option></select></div></div>{productsError && <div className="cole-alert error">{productsError}<button type="button" onClick={loadProducts}>Reintentar</button></div>}{loadingProducts ? <div className="cole-empty">Cargando productos...</div> : filteredProducts.length === 0 ? <div className="cole-empty">No encontramos productos con esos filtros.</div> : <div className="cole-products-grid">{filteredProducts.map((product) => { const id = getProductId(product); const stock = getProductStock(product); return <article key={id} className="cole-product-card"><div className="cole-product-media">{renderProductImage(product, false)}{stock <= 0 ? <span className="cole-badge danger">Sin stock</span> : stock <= 5 ? <span className="cole-badge">Últimas unidades</span> : null}</div><div className="cole-product-info"><p className="cole-product-category">{getProductCategory(product)}</p><h3>{getProductName(product)}</h3><p className="cole-product-meta">Código: {getProductCode(product) || "-"} · Stock: {stock}</p>{variantesDeProducto(product).length > 0 && <label className="cole-variant-select">Variante<select value={selectedVariants[getBaseProductId(product)] || variantesDeProducto(product)[0]?.id || ""} onChange={(event) => setSelectedVariants((current) => ({ ...current, [getBaseProductId(product)]: event.target.value }))}>{variantesDeProducto(product).map((variante) => <option key={variante.id} value={variante.id}>{variante.nombre}</option>)}</select></label>}<div className="cole-product-bottom"><strong className="cole-price">{formatPrice(getProductPrice(product))}</strong><div className="cole-product-controls"><div className="cole-quantity"><button type="button" onClick={() => changeProductQuantity(id, -1)} aria-label="Bajar cantidad"><Icons.Minus className="cole-icon small" /></button><input value={getProductQuantity(id)} onChange={(event) => setProductQuantity(id, event.target.value)} inputMode="numeric" aria-label={`Cantidad de ${getProductName(product)}`} /><button type="button" onClick={() => changeProductQuantity(id, 1)} aria-label="Subir cantidad"><Icons.Plus className="cole-icon small" /></button></div><button type="button" onClick={() => addToCart(product)} className="cole-add-button" disabled={getProductPrice(product) <= 0}>Agregar</button></div></div></div></article>; })}</div>}</section>
+        <section id="catalogo" className="cole-shell cole-catalog"><div className="cole-catalog-header"><div><span className="cole-section-kicker">Catálogo</span><h2>Productos destacados</h2><p>Powered by COLE Gestión.</p></div><div className="cole-filters"><label className="cole-search"><span className="cole-search-icon-wrap"><Icons.Search className="cole-search-icon" /></span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar producto, código, rubro..." /></label><select value={sort} onChange={(event) => setSort(event.target.value)}><option value="name-asc">Nombre A-Z</option><option value="name-desc">Nombre Z-A</option><option value="price-asc">Menor precio</option><option value="price-desc">Mayor precio</option></select></div></div>{productsError && <div className="cole-alert error">{productsError}<button type="button" onClick={loadProducts}>Reintentar</button></div>}{loadingProducts ? <div className="cole-empty">Cargando productos...</div> : filteredProducts.length === 0 ? <div className="cole-empty">No encontramos productos con esos filtros.</div> : <div className="cole-products-grid">{filteredProducts.map((product) => { const id = getProductId(product); const stock = getProductStock(product); return <article key={id} className="cole-product-card"><div className="cole-product-media">{renderProductImage(product, false)}{stock <= 0 ? <span className="cole-badge danger">Sin stock</span> : stock <= 5 ? <span className="cole-badge">Últimas unidades</span> : null}</div><div className="cole-product-info"><p className="cole-product-category">{getProductCategory(product)}</p><h3>{getProductName(product)}</h3><p className="cole-product-meta">Código: {getProductCode(product) || "-"} · Stock: {stock}</p>{variantesDeProducto(product).length > 0 && <label className="cole-variant-select">Variante<select value={selectedVariants[getBaseProductId(product)] || variantesDeProducto(product)[0]?.id || ""} onChange={(event) => setSelectedVariants((current) => ({ ...current, [getBaseProductId(product)]: event.target.value }))}>{variantesDeProducto(product).map((variante) => <option key={variante.id} value={variante.id}>{variante.nombre}</option>)}</select></label>}<div className="cole-product-bottom"><strong className="cole-price">{formatPrice(getProductPrice(product))}</strong><div className="cole-product-controls"><div className="cole-quantity"><button type="button" onClick={() => changeProductQuantity(id, -1)} aria-label="Bajar cantidad"><Icons.Minus className="cole-icon small" /></button><input value={getProductQuantity(id)} onChange={(event) => setProductQuantity(id, event.target.value)} inputMode="numeric" aria-label={`Cantidad de ${getProductName(product)}`} /><button type="button" onClick={() => changeProductQuantity(id, 1)} aria-label="Subir cantidad"><Icons.Plus className="cole-icon small" /></button></div><button type="button" onClick={() => addToCart(product)} className="cole-add-button" disabled={getProductPrice(product) <= 0}>Agregar</button></div></div></div></article>; })}</div>}</section>
       
         <footer className="cole-footer">
           <div className="cole-shell cole-footer-grid">
@@ -509,6 +509,24 @@ export default function TiendaCole() {
               <strong>Legales</strong>
               <p>CUIT: 20-26992089-1</p>
               <p>Domicilio: 32 1096 - Santa Teresita</p>
+              <div className="flex justify-center md:justify-end">
+  <a
+    href="https://qr.afip.gob.ar/?qr=hckw5RXVKfqMdo5iDBeFJA,,"
+    target="_blank"
+    rel="noopener noreferrer"
+  >
+    <img
+      src="/datafiscal.jpg"
+      alt="Data Fiscal AFIP"
+      style={{
+        width: "90px",
+        height: "auto",
+        background: "white",
+        borderRadius: "8px",
+      }}
+    />
+  </a>
+</div>
               <a className="cole-regret-link" href="mailto:colelibreria@gmail.com?subject=Arrepentimiento%20de%20compra&body=Solicito%20cancelar%20/%20revocar%20mi%20compra.%0A%0ANombre:%0ATel%C3%A9fono:%0AN%C2%BA%20de%20pedido:%0AEmail:">Botón de arrepentimiento</a>
             </div>
           </div>
