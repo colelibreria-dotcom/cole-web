@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
@@ -51,9 +54,11 @@ function mapProducto(producto) {
     price: Math.round(Number(precio || 0)),
     oldPrice: producto.precio_anterior ? Number(producto.precio_anterior) : null,
     stock: Number(producto.stock_actual ?? producto.stock ?? 0),
-    image: producto.imagen_url || producto.imagen || producto.foto_url || producto.icono || "📦",
+    image: producto.imagen_url || producto.imagen || producto.foto_url || producto.icono || "",
     imageUrl: producto.imagen_url || producto.imagen || producto.foto_url || "",
     imagen_url: producto.imagen_url || producto.imagen || producto.foto_url || "",
+    updated_at: producto.updated_at || producto.imagen_updated_at || producto.created_at || "",
+    imagen_version: producto.updated_at || producto.imagen_updated_at || producto.created_at || "",
     badge: producto.destacado ? "Destacado" : null,
   };
 }
@@ -77,7 +82,16 @@ export async function GET() {
       .map(mapProducto)
       .filter((producto) => producto.price > 0);
 
-    return NextResponse.json({ ok: true, productos });
+    return NextResponse.json(
+      { ok: true, productos, generated_at: new Date().toISOString() },
+      {
+        headers: {
+          "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+          Pragma: "no-cache",
+          Expires: "0",
+        },
+      }
+    );
   } catch (error) {
     return NextResponse.json(
       { ok: false, error: error.message || "Error al cargar productos" },
