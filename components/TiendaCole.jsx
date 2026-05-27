@@ -449,7 +449,11 @@ export default function TiendaCole() {
       </div>
     )}
   </div>
-</nav><button type="button" onClick={openCart} className="cole-cart-button"><span>Carrito</span><Icons.Cart className="cole-icon" />{totalItems > 0 && <strong>{totalItems}</strong>}</button></div></header>
+</nav><button type="button" onClick={openCart} className="cole-cart-button">
+  <span>Carrito</span>
+  <Icons.Cart className="cole-icon" />
+  {totalItems > 0 && <strong>{totalItems}</strong>}
+</button></div></header>
 <main>
         <section className="cole-hero">
           <div className="cole-shell">
