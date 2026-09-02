@@ -13,7 +13,7 @@ export async function GET() {
   try {
     const { data, error } = await supabase
       .from("combos")
-      .select("id, nombre, descripcion, precio_venta, combo_items(cantidad, orden, productos(id, nombre, imagen_url, imagen, precio_venta, activo))")
+      .select("id, nombre, descripcion, precio_venta, combo_items(cantidad, orden, productos(id, nombre, imagen_url, precio_venta, activo))")
       .eq("activo", true)
       .eq("visible_web", true)
       .order("created_at", { ascending: false });
