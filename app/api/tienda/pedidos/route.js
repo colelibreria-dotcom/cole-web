@@ -25,6 +25,89 @@ function normalizarMetodoPago(value) {
   return metodo === "mercado_pago" ? "mercado_pago" : "pagar_al_retirar";
 }
 
+function normalizarZonasEnvio(value) {
+  return (Array.isArray(value) ? value : []).map((zona) => ({
+    localidad: cleanText(zona?.localidad),
+    costo: Math.max(0, precioComercial(zona?.costo || 0)),
+  })).filter((zona) => zona.localidad);
+}
+
+function cantidadEntera(value) {
+  const cantidad = Number(value);
+  return Number.isInteger(cantidad) && cantidad > 0 ? cantidad : 0;
+}
+
+async function validarStockActual(items) {
+  const cantidades = new Map();
+
+  for (const item of items) {
+    const productoId = cleanText(item.producto_id);
+    const varianteId = cleanText(item.variante_id);
+    const cantidad = cantidadEntera(item.cantidad);
+
+    if (!productoId || !cantidad) {
+      throw new Error("Hay un producto con una cantidad inválida en el carrito.");
+    }
+
+    const key = `${productoId}:${varianteId}`;
+    cantidades.set(key, { productoId, varianteId, cantidad: (cantidades.get(key)?.cantidad || 0) + cantidad });
+  }
+
+  const productoIds = [...new Set([...cantidades.values()].map((item) => item.productoId))];
+  const { data: productos, error: productosError } = await supabase
+    .from("productos")
+    .select("id, nombre, stock_actual")
+    .in("id", productoIds);
+
+  if (productosError) throw productosError;
+  const productosPorId = new Map((productos || []).map((producto) => [String(producto.id), producto]));
+
+  const varianteIds = [...new Set([...cantidades.values()].map((item) => item.varianteId).filter(Boolean))];
+  let variantesPorId = new Map();
+  if (varianteIds.length > 0) {
+    const { data: variantes, error: variantesError } = await supabase
+      .from("producto_variantes")
+      .select("id, producto_id, nombre, stock_actual, activo")
+      .in("id", varianteIds);
+    if (variantesError) throw variantesError;
+    variantesPorId = new Map((variantes || []).map((variante) => [String(variante.id), variante]));
+  }
+
+  for (const item of cantidades.values()) {
+    const producto = productosPorId.get(item.productoId);
+    if (!producto) throw new Error("Uno de los productos ya no está disponible.");
+
+    const variante = item.varianteId ? variantesPorId.get(item.varianteId) : null;
+    if (item.varianteId && (!variante || String(variante.producto_id) !== item.productoId || variante.activo === false)) {
+      throw new Error("La variante elegida ya no está disponible.");
+    }
+
+    const stock = Math.max(0, Math.floor(Number(variante?.stock_actual ?? producto.stock_actual ?? 0)));
+    if (item.cantidad > stock) {
+      const nombre = variante?.nombre ? `${producto.nombre} - ${variante.nombre}` : producto.nombre;
+      throw new Error(`${nombre}: quedan ${stock} unidad${stock === 1 ? "" : "es"} disponible${stock === 1 ? "" : "s"}. Ajustá el carrito para continuar.`);
+    }
+  }
+}
+
+async function obtenerConfiguracionEnvios() {
+  const { data, error } = await supabase
+    .from("configuracion_general")
+    .select("envios_habilitado, envios_zonas, envios_franjas, envios_pedido_minimo")
+    .eq("id", 1)
+    .maybeSingle();
+
+  if (error) throw error;
+  return {
+    habilitado: !!data?.envios_habilitado,
+    zonas: normalizarZonasEnvio(data?.envios_zonas),
+    franjas: (Array.isArray(data?.envios_franjas) ? data.envios_franjas : [])
+      .map((franja) => cleanText(franja))
+      .filter(Boolean),
+    pedidoMinimo: Math.max(0, precioComercial(data?.envios_pedido_minimo || 0)),
+  };
+}
+
 async function actualizarPedidoSeguro(id, payload) {
   const { error } = await supabase.from("pedidos_web").update(payload).eq("id", id);
   if (!error) return;
@@ -67,7 +150,13 @@ async function crearPreferenciaMercadoPago({ request, pedido, items, clienteEmai
       quantity: Number(item.cantidad || 1),
       unit_price: precioComercial(item.precio_unitario || 0),
       currency_id: "ARS",
-    })),
+    })).concat(Number(pedido.costo_envio || 0) > 0 ? [{
+      id: `envio-${pedido.id}`,
+      title: `Envío a domicilio - ${pedido.localidad_entrega || "zona"}`,
+      quantity: 1,
+      unit_price: precioComercial(pedido.costo_envio),
+      currency_id: "ARS",
+    }] : []),
   };
 
   const mpRes = await fetch("https://api.mercadopago.com/checkout/preferences", {
@@ -108,6 +197,7 @@ export async function POST(request) {
     const clienteEmail = cleanText(body.cliente_email || body.email_cliente);
     const observaciones = cleanText(body.observaciones);
     const metodoPago = normalizarMetodoPago(body.metodo_pago);
+    const tipoEntrega = cleanText(body.tipo_entrega) === "envio_domicilio" ? "envio_domicilio" : "retiro";
     const items = Array.isArray(body.items) ? body.items : [];
 
     if (!clienteNombre) {
@@ -130,11 +220,13 @@ export async function POST(request) {
     }
 
     const itemsLimpios = items.map((item) => {
-      const cantidad = Number(item.cantidad || 1);
+      const cantidad = cantidadEntera(item.cantidad);
       const precioUnitario = precioComercial(item.precio_unitario || 0);
 
       return {
         producto_id: item.producto_id || null,
+        variante_id: item.variante_id || null,
+        variante_nombre: cleanText(item.variante_nombre),
         codigo_barras: cleanText(item.codigo_barras || item.codigo),
         codigo_interno: cleanText(item.codigo_interno),
         nombre_producto: cleanText(item.nombre_producto || item.nombre || "Producto"),
@@ -145,7 +237,41 @@ export async function POST(request) {
       };
     });
 
-    const total = precioComercial(itemsLimpios.reduce((sum, item) => sum + Number(item.subtotal || 0), 0));
+    await validarStockActual(itemsLimpios);
+
+    const subtotalProductos = precioComercial(itemsLimpios.reduce((sum, item) => sum + Number(item.subtotal || 0), 0));
+    let costoEnvio = 0;
+    let localidadEntrega = "";
+    let direccionEntrega = "";
+    let referenciaEntrega = "";
+    let franjaEntrega = "";
+
+    if (tipoEntrega === "envio_domicilio") {
+      if (metodoPago !== "mercado_pago") {
+        return NextResponse.json({ ok: false, error: "Los pedidos con envío a domicilio deben pagarse online." }, { status: 400 });
+      }
+
+      const configuracionEnvios = await obtenerConfiguracionEnvios();
+      if (!configuracionEnvios.habilitado) {
+        return NextResponse.json({ ok: false, error: "Los envíos a domicilio no están habilitados por el momento." }, { status: 400 });
+      }
+      if (subtotalProductos < configuracionEnvios.pedidoMinimo) {
+        return NextResponse.json({ ok: false, error: `El pedido mínimo para envío es de $${configuracionEnvios.pedidoMinimo.toLocaleString("es-AR")}.` }, { status: 400 });
+      }
+
+      localidadEntrega = cleanText(body.localidad_entrega);
+      direccionEntrega = cleanText(body.direccion_entrega);
+      referenciaEntrega = cleanText(body.referencia_entrega);
+      franjaEntrega = cleanText(body.franja_entrega);
+      const zona = configuracionEnvios.zonas.find((item) => item.localidad.toLocaleLowerCase("es") === localidadEntrega.toLocaleLowerCase("es"));
+
+      if (!zona || !direccionEntrega || !franjaEntrega || !configuracionEnvios.franjas.includes(franjaEntrega)) {
+        return NextResponse.json({ ok: false, error: "Completá localidad, dirección y franja horaria para el envío." }, { status: 400 });
+      }
+      costoEnvio = zona.costo;
+    }
+
+    const total = subtotalProductos + costoEnvio;
     const numeroPedido = `WEB-${Date.now()}`;
 
     const pedidoPayload = {
@@ -154,6 +280,12 @@ export async function POST(request) {
       cliente_telefono: clienteTelefono,
       cliente_email: clienteEmail || null,
       observaciones: observaciones || null,
+      tipo_entrega: tipoEntrega,
+      localidad_entrega: localidadEntrega || null,
+      direccion_entrega: direccionEntrega || null,
+      referencia_entrega: referenciaEntrega || null,
+      franja_entrega: franjaEntrega || null,
+      costo_envio: costoEnvio,
       total,
       estado: "nuevo",
       estado_pago: "pendiente_pago",
@@ -174,7 +306,7 @@ export async function POST(request) {
       return NextResponse.json({ ok: false, error: pedidoError.message }, { status: 500 });
     }
 
-    const itemsPayload = itemsLimpios.map((item) => ({ ...item, pedido_web_id: pedido.id }));
+    const itemsPayload = itemsLimpios.map(({ variante_id, variante_nombre, ...item }) => ({ ...item, pedido_web_id: pedido.id }));
     const { error: itemsError } = await supabase.from("pedido_web_items").insert(itemsPayload);
 
     if (itemsError) {
