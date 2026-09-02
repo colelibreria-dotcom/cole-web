@@ -576,7 +576,7 @@ export default function TiendaCole() {
     )}
 </div>
 <a href="/listas-escolares" className="cole-nav-link">Listas escolares</a>
-<a href={buildWhatsAppUrl("Hola COLE, quisiera conocer los combos disponibles.")} target="_blank" rel="noopener noreferrer" className="cole-nav-link">Combos</a>
+<a href="/combos" className="cole-nav-link">Combos</a>
 </nav><button type="button" onClick={openCart} className="cole-cart-button">
   <span className="cole-cart-label">Carrito</span>
   <Icons.Cart className="cole-cart-icon" />
