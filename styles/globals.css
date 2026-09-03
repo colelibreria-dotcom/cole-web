@@ -776,3 +776,19 @@ article {
     grid-template-columns: 1fr;
   }
 }
+@media (max-width: 640px) {
+  .cole-header-inner {
+    min-height: 0 !important;
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    grid-template-areas: "brand brand" "catalog cart" "links links" !important;
+    gap: 8px !important;
+    padding: 10px 0 !important;
+  }
+  .cole-brand { grid-area: brand !important; }
+  .cole-nav { grid-area: catalog !important; display: block !important; width: 100% !important; margin: 0 !important; }
+  .cole-nav-links { grid-area: links !important; display: flex !important; justify-content: center !important; gap: 22px !important; margin: 0 !important; padding: 2px 0 4px !important; }
+  .cole-nav-links a { color: #4b5563 !important; text-decoration: none !important; font-size: 14px !important; font-weight: 800 !important; white-space: nowrap !important; }
+  .cole-cart-button { grid-area: cart !important; width: 100% !important; height: 46px !important; min-height: 46px !important; padding: 0 12px !important; }
+  .cole-nav-dropdown-button { width: 100% !important; height: 46px !important; min-height: 46px !important; padding: 0 14px !important; }
+}
