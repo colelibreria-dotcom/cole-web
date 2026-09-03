@@ -16,10 +16,32 @@ function isVisible(producto) {
 
   if (activo === false) return false;
 
-  const hasVisibleField = visibleWeb !== undefined || visibleEnWeb !== undefined;
-  if (!hasVisibleField) return true;
+  // Older records may have these columns as null. Only an explicit false
+  // should hide a product from the storefront.
+  const visibilityFlags = [visibleWeb, visibleEnWeb].filter(
+    (value) => typeof value === "boolean"
+  );
+  if (visibilityFlags.length === 0) return true;
 
-  return visibleWeb === true || visibleEnWeb === true;
+  return visibilityFlags.some(Boolean);
+}
+
+async function getAllProducts() {
+  const pageSize = 1000;
+  const productos = [];
+
+  for (let from = 0; ; from += pageSize) {
+    const { data, error } = await supabase
+      .from("productos")
+      .select("*")
+      .order("nombre", { ascending: true })
+      .range(from, from + pageSize - 1);
+
+    if (error) throw error;
+
+    productos.push(...(data || []));
+    if (!data || data.length < pageSize) return productos;
+  }
 }
 
 function mapProducto(producto, categoriasPorId) {
@@ -71,23 +93,13 @@ function mapProducto(producto, categoriasPorId) {
 
 export async function GET() {
   try {
-    const [{ data: productosData, error: productosError }, { data: categoriasData }] =
+    const [productosData, { data: categoriasData, error: categoriasError }] =
       await Promise.all([
-        supabase
-          .from("productos")
-          .select("*")
-          .order("nombre", { ascending: true }),
-        supabase
-          .from("categorias")
-          .select("id, nombre"),
+        getAllProducts(),
+        supabase.from("categorias").select("id, nombre"),
       ]);
 
-    if (productosError) {
-      return NextResponse.json(
-        { ok: false, error: productosError.message },
-        { status: 500 }
-      );
-    }
+    if (categoriasError) throw categoriasError;
 
     const categoriasPorId = {};
     for (const categoria of categoriasData || []) {
