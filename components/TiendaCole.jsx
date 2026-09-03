@@ -139,6 +139,7 @@ export default function TiendaCole() {
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("Todos");
   const [categoryMenuOpen, setCategoryMenuOpen] = useState(false);
+  const [categorySearch, setCategorySearch] = useState("");
   const [sort, setSort] = useState("name-asc");
   const [gridSize, setGridSize] = useState("normal");
   const [cart, setCart] = useState([]);
@@ -568,7 +569,10 @@ export default function TiendaCole() {
     <button
       type="button"
       className="cole-nav-dropdown-button"
-      onClick={() => setCategoryMenuOpen((open) => !open)}
+      onClick={() => {
+        setCategoryMenuOpen((open) => !open);
+        setCategorySearch("");
+      }}
       aria-expanded={categoryMenuOpen}
       aria-haspopup="menu"
     >
@@ -576,6 +580,10 @@ export default function TiendaCole() {
     </button>
     {categoryMenuOpen && (
       <div className="cole-catalog-dropdown-panel">
+        <label className="cole-category-search">
+          <span>Buscar categoría</span>
+          <input value={categorySearch} onChange={(event) => setCategorySearch(event.target.value)} placeholder="Escribí una categoría" autoFocus />
+        </label>
         <button
           type="button"
           onClick={() => {
@@ -587,7 +595,7 @@ export default function TiendaCole() {
         >
           Todos ({products.length})
         </button>
-        {categories.filter((cat) => cat !== "Todos").map((cat) => (
+        {categories.filter((cat) => cat !== "Todos" && normalizeText(cat).includes(normalizeText(categorySearch))).map((cat) => (
           <button
             key={cat}
             type="button"
@@ -1032,6 +1040,7 @@ export default function TiendaCole() {
           font-weight:800;
           cursor:pointer;
         }
+        .cole-category-search{display:grid;gap:5px;padding:4px 4px 9px;color:#4b5563;font-size:11px;font-weight:850}.cole-category-search span{padding-left:3px}.cole-category-search input{width:100%;height:34px;border:1px solid #d1d5db;border-radius:9px;padding:0 10px;background:#fff;color:#111827;font:inherit;outline:0}.cole-category-search input:focus{border-color:#2563eb;box-shadow:0 0 0 2px rgba(37,99,235,.12)}
         .cole-catalog-dropdown-panel button:hover,
         .cole-catalog-dropdown-panel button.active{
           background:#f5c400;
