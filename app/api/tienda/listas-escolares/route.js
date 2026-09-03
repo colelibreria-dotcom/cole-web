@@ -10,22 +10,38 @@ const supabase = createClient(
 
 export async function GET() {
   try {
-    const { data: escuelas, error: escuelasError } = await supabase
+    let { data: escuelas, error: escuelasError } = await supabase
       .from("escuelas")
-      .select("id, nombre, localidad, orden")
+      .select("id, codigo_oficial, nombre, localidad, nivel_oficial, turnos_oficiales, orden")
       .eq("activo", true)
       .order("localidad", { ascending: true })
       .order("orden", { ascending: true })
       .order("nombre", { ascending: true });
 
+    if (escuelasError && /codigo_oficial|nivel_oficial|turnos_oficiales/i.test(escuelasError.message || "")) {
+      ({ data: escuelas, error: escuelasError } = await supabase
+        .from("escuelas")
+        .select("id, nombre, localidad, orden")
+        .eq("activo", true)
+        .order("localidad", { ascending: true })
+        .order("orden", { ascending: true })
+        .order("nombre", { ascending: true }));
+    }
     if (escuelasError) throw escuelasError;
 
-    const { data: listas, error: listasError } = await supabase
+    let { data: listas, error: listasError } = await supabase
       .from("listas_escolares")
-      .select("id, escuela_id, titulo, nivel, curso, anio, descripcion, orden")
+      .select("id, escuela_id, titulo, nivel, curso, anio, division, turno, descripcion, orden")
       .eq("activa", true)
       .order("orden", { ascending: true });
 
+    if (listasError && /division|turno/i.test(listasError.message || "")) {
+      ({ data: listas, error: listasError } = await supabase
+        .from("listas_escolares")
+        .select("id, escuela_id, titulo, nivel, curso, anio, descripcion, orden")
+        .eq("activa", true)
+        .order("orden", { ascending: true }));
+    }
     if (listasError) throw listasError;
 
     const ids = (listas || []).map((lista) => lista.id);
@@ -35,7 +51,7 @@ export async function GET() {
 
     const { data: items, error: itemsError } = await supabase
       .from("lista_escolar_items")
-      .select("id, lista_id, nombre, cantidad, orden, obligatorio, lista_escolar_opciones(id, nivel, producto_id, cantidad, orden, productos(nombre, precio_venta, imagen_url))")
+      .select("id, lista_id, nombre, cantidad, orden, obligatorio, lista_escolar_opciones(id, nivel, producto_id, cantidad, orden, productos(id, nombre, precio_venta, imagen_url, stock_actual))")
       .in("lista_id", ids)
       .order("orden", { ascending: true });
 

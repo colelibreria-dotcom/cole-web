@@ -232,6 +232,35 @@ export default function TiendaCole() {
     }
   }
 
+  useEffect(() => {
+    if (products.length === 0) return;
+
+    const rawSelection = window.localStorage.getItem("cole_lista_escolar_carrito");
+    if (!rawSelection) return;
+
+    try {
+      const selection = JSON.parse(rawSelection);
+      const requestedItems = Array.isArray(selection?.items) ? selection.items : [];
+      const productsById = new Map(products.map((product) => [String(product.id), product]));
+      const availableItems = requestedItems
+        .map((item) => ({ product: productsById.get(String(item.producto_id)), quantity: Number(item.cantidad || 1) }))
+        .filter(({ product, quantity }) => product && quantity > 0 && getAvailableStock(product) > 0);
+
+      if (availableItems.length > 0) {
+        setCart((current) => availableItems.reduce(
+          (nextCart, { product, quantity }) => addProductToCart(nextCart, product, quantity),
+          current
+        ));
+        setCartOpen(true);
+        setCheckoutStep("cart");
+      }
+    } catch {
+      // La selección temporal puede quedar incompleta si se cerró la página durante el paso al carrito.
+    } finally {
+      window.localStorage.removeItem("cole_lista_escolar_carrito");
+    }
+  }, [products]);
+
   async function loadVariants(productos) {
     try {
       const ids = productos
@@ -660,7 +689,7 @@ export default function TiendaCole() {
                     <div className="cole-product-info">
                       <p className="cole-product-category">{getProductCategory(product)}</p>
                       <h3>{getProductName(product)}</h3>
-                      <p className="cole-product-meta">Código: {getProductCode(product) || "-"} · {stock <= 0 ? "Consultá disponibilidad" : `${stock} disponible${stock === 1 ? "" : "s"}`}</p>
+                      <p className="cole-product-meta">Código: {getProductCode(product) || "-"}</p>
                       {variantesDeProducto(product).length > 0 && (
                         <label className="cole-variant-select">
                           Variante
